@@ -1,39 +1,50 @@
 import com.mongodb.*;
+import org.bson.types.ObjectId;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
 
 public class Database {
+    private static final String MongoURI = "mongodb://localhost:27017";
+    private static final String DatabaseName = "MyDB";
+    private static DB db;
 
-    private void createCollection(String collectionName, DB db){
-        db.createCollection(collectionName, null);
+    Database(){
+        MongoClient mongoClient = new MongoClient(new MongoClientURI(MongoURI));
+        db = mongoClient.getDB(DatabaseName);
     }
 
-    private DBCollection getCollection(String collectionName, DB db){
+    public DBCollection createCollection(String collectionName){
+        return db.createCollection(collectionName, null);
+    }
+
+    public DBCollection getCollection(String collectionName){
         DBCollection collection = db.getCollection(collectionName);
         return collection;
     }
 
-    private void displayCollections(DB db){
+    public void displayCollections(){
         Set<String> collectionNames = db.getCollectionNames();
         for(String collectionName: collectionNames){
             System.out.println(collectionName);
         }
     }
 
-    private void saveInsert(DBCollection collection, Map<String, String> fields){
+    public ObjectId saveInsert(DBCollection collection, Map<String, Object> fields){
         /*
         If element with given id is present perform update else perform insert.
          */
         BasicDBObject document = new BasicDBObject();
         fields.forEach((k,v) -> document.put(k,v));
         collection.insert(document);
+        return (ObjectId)document.get("_id");
     }
 
-    private void saveUpdate(DBCollection collection, Map<String, String> searchArgs,
-                            Map<String, String> newArgs){
+    public void saveUpdate(DBCollection collection, Map<String, Object> searchArgs,
+                            Map<String, Object> newArgs){
         BasicDBObject searchQuery = new BasicDBObject();
         searchArgs.forEach((k,v) -> searchQuery.put(k,v));
 
@@ -46,26 +57,44 @@ public class Database {
         collection.update(searchQuery, updateObject);
     }
 
-    private void findDocument(DBCollection collection, Map<String, String> queryArgs){
+    public void listMatchingDocuments(DBCollection collection, Map<String, Object> queryArgs){
         BasicDBObject searchQuery = new BasicDBObject();
         queryArgs.forEach((k,v) -> searchQuery.put(k,v));
         DBCursor cursor = collection.find(searchQuery);
 
         while(cursor.hasNext()) {
-            System.out.println(cursor.next());
+            DBObject obj = cursor.next();
+            printOffer(obj);
         }
     }
 
-    private void deleteDocument(DBCollection collection, Map<String, String> queryArgs){
+    public void printOffer(DBObject obj){
+        System.out.println("Address: " + obj.get("address") + "\n" +
+                "AvailableFrom: " + obj.get("availableFrom") + "\n" +
+                "AvailableTo: " + obj.get("availableTo") + "\n" +
+                "PricePerDay: " + obj.get("pricePerDay") + "\n");
+    }
+
+    public DBObject findOneDocument(DBCollection collection, Map<String, Object> queryArgs){
+        BasicDBObject searchQuery = new BasicDBObject();
+        queryArgs.forEach((k,v) -> searchQuery.put(k,v));
+        DBObject obj = collection.findOne(searchQuery);
+
+        printOffer(obj);
+
+        return obj;
+    }
+
+    public void deleteDocument(DBCollection collection, Map<String, Object> queryArgs){
         BasicDBObject searchQuery = new BasicDBObject();
         queryArgs.forEach((k,v) -> searchQuery.put(k,v));
         collection.remove(searchQuery);
     }
 
 
-    private void clearDb(DB db){
+    public void clearDb(){
         for(String collectionName: db.getCollectionNames()){
-            getCollection(collectionName, db).drop();
+            db.getCollection(collectionName).drop();
         }
     }
 }
